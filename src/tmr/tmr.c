@@ -132,6 +132,17 @@ uint64_t tmr_jiffies(void)
 	li.LowPart = ft.dwLowDateTime;
 	li.HighPart = ft.dwHighDateTime;
 	jfs = li.QuadPart/10/1000;
+#elif HAVE_CLOCK_GETTIME && defined (CLOCK_MONOTONIC)
+
+	struct timespec now;
+
+	if (0 != clock_gettime(CLOCK_MONOTONIC, &now)) {
+		DEBUG_WARNING("jiffies: clock_gettime() failed (%m)\n", errno);
+		return 0;
+	}
+
+	jfs  = (long)now.tv_sec * (uint64_t)1000;
+	jfs += now.tv_nsec / (uint64_t)1000000;
 #else
 	struct timeval now;
 
