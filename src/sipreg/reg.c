@@ -340,7 +340,8 @@ int sipreg_register(struct sipreg **regp, struct sip *sip, const char *reg_uri,
 	if (!reg)
 		return ENOMEM;
 
-	err = sip_dialog_alloc(&reg->dlg, reg_uri, to_uri, NULL, from_uri,
+	err = sip_dialog_alloc(&reg->dlg, reg_uri,
+			       NULL, to_uri, NULL, from_uri,
 			       routev, routec);
 	if (err)
 		goto out;
@@ -393,6 +394,82 @@ int sipreg_register(struct sipreg **regp, struct sip *sip, const char *reg_uri,
 	return err;
 }
 
+
+int sipreg_register_dname(struct sipreg **regp, struct sip *sip,
+                         const char *reg_uri,
+                         const char *dname,
+                         const char *to_uri, const char *from_uri,
+                         uint32_t expires,
+                         const char *cuser, const char *routev[],
+                         uint32_t routec,
+                         int regid, sip_auth_h *authh, void *aarg, bool aref,
+                         sip_resp_h *resph, void *arg,
+                         const char *params, const char *fmt, ...)
+{
+       struct sipreg *reg;
+       int err;
+
+       if (!regp || !sip || !reg_uri || !to_uri || !from_uri ||
+           !expires || !cuser)
+               return EINVAL;
+
+       reg = mem_zalloc(sizeof(*reg), destructor);
+       if (!reg)
+               return ENOMEM;
+
+       err = sip_dialog_alloc(&reg->dlg, reg_uri,
+                              dname, to_uri, dname, from_uri,
+                              routev, routec);
+       if (err)
+              goto out;
+
+       err = sip_auth_alloc(&reg->auth, authh, aarg, aref);
+       if (err)
+               goto out;
+
+       err = str_dup(&reg->cuser, cuser);
+       if (params)
+               err |= str_dup(&reg->params, params);
+       if (err)
+               goto out;
+
+       /* Custom SIP headers */
+       if (fmt) {
+               va_list ap;
+
+               reg->hdrs = mbuf_alloc(256);
+               if (!reg->hdrs) {
+                       err = ENOMEM;
+                       goto out;
+               }
+
+               va_start(ap, fmt);
+               err = mbuf_vprintf(reg->hdrs, fmt, ap);
+               reg->hdrs->pos = 0;
+               va_end(ap);
+
+               if (err)
+                       goto out;
+       }
+
+       reg->sip     = mem_ref(sip);
+       reg->expires = expires;
+       reg->resph   = resph ? resph : dummy_handler;
+       reg->arg     = arg;
+       reg->regid   = regid;
+
+       err = request(reg, true);
+       if (err)
+               goto out;
+
+ out:
+       if (err)
+               mem_deref(reg);
+       else
+               *regp = reg;
+
+       return err;
+}
 
 /**
  * Get the local socket address for a SIP Registration client
