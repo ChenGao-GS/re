@@ -86,10 +86,10 @@ static void destructor(void *arg)
  *
  * @return 0 if success, otherwise errorcode
  */
-int sip_dialog_alloc(struct sip_dialog **dlgp, const char *uri,
-                    const char *to_name, const char *to_uri,
-                     const char *from_name, const char *from_uri,
-                     const char *routev[], uint32_t routec)
+int sip_dialog_alloc(struct sip_dialog **dlgp,
+		     const char *uri, const char *to_uri,
+		     const char *from_name, const char *from_uri,
+		     const char *routev[], uint32_t routec)
 {
 	const uint64_t ltag = rand_u64();
 	struct sip_dialog *dlg;
@@ -132,11 +132,8 @@ int sip_dialog_alloc(struct sip_dialog **dlgp, const char *uri,
 		if (i == 0)
 			rend = dlg->mb->pos - 2;
 	}
-       err |= mbuf_printf(dlg->mb, "To: %s%s%s<%s>\r\n",
-                          to_name ? "\"" : "", to_name,
-                          to_name ? "\" " : "",
-                          to_uri);
-       dlg->cpos = dlg->mb->pos;
+	err |= mbuf_printf(dlg->mb, "To: <%s>\r\n", to_uri);
+	dlg->cpos = dlg->mb->pos;
 	err |= mbuf_printf(dlg->mb, "From: %s%s%s<%s>;tag=%016llx\r\n",
 			   from_name ? "\"" : "", from_name,
 			   from_name ? "\" " : "",
